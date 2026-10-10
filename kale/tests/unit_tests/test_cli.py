@@ -72,6 +72,33 @@ def test_cli_default_applies_when_notebook_names_neither(tmp_path, field, defaul
     assert getattr(_cli_config(nb), field) == default
 
 
+@pytest.mark.parametrize(
+    "field,default",
+    [("pipeline_name", DEFAULT_PIPELINE_NAME), ("experiment_name", DEFAULT_EXPERIMENT_NAME)],
+)
+@pytest.mark.parametrize("empty", ["", None])
+def test_cli_default_applies_when_notebook_value_is_empty(tmp_path, field, default, empty):
+    """An empty name in the notebook falls back to the CLI default.
+
+    The labextension saves an unset field as an empty string (see
+    `examples/base/candies_sharing.ipynb`, which has `"experiment_name": ""`),
+    so an empty value has to be treated like a missing one. Otherwise the
+    pipeline is submitted with no experiment name and KFP rejects it.
+    """
+    nb = _write_nb(tmp_path / "nb.ipynb", {field: empty})
+
+    assert getattr(_cli_config(nb), field) == default
+
+
+def test_explicit_empty_override_is_not_replaced_by_the_default(tmp_path):
+    """Only the notebook's own empty value falls back; real values are kept."""
+    nb = _write_nb(tmp_path / "nb.ipynb", {"experiment_name": ""})
+
+    config = _cli_config(nb, {"experiment_name": "from-cli"})
+
+    assert config.experiment_name == "from-cli"
+
+
 @pytest.mark.parametrize("field", ["pipeline_name", "experiment_name"])
 def test_explicit_cli_argument_still_wins(tmp_path, field):
     """An explicitly passed argument keeps precedence over the notebook."""
